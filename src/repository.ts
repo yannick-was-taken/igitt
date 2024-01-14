@@ -19,8 +19,18 @@ export class RepoLocationNotEmpty extends Error {
     }
 }
 
+export class RepoBareStatusMismatch extends Error {
+    constructor(requested: boolean, found: boolean) {
+        super(`bare status mismatch, requested bare = ${requested}, found bare = ${found}`);
+    }
+}
+
+type RepositoryMeta = {
+    bare: boolean,
+};
+
 export class GitRepository {
-    private constructor(readonly repoPath: string, readonly gitDir: string) {}
+    private constructor(readonly repoPath: string, readonly gitDir: string, readonly meta: RepositoryMeta) {}
 
     static async init(repoPath: string, options: InitOptions = {}): Promise<GitRepository> {
         const fs = config.fileSystemProvider();
@@ -64,7 +74,9 @@ export class GitRepository {
 
         await fs.promises.writeFile(path.join(gitDir, "config"), ini.stringify(gitConfig));
 
-        return new GitRepository(repoPath, gitDir);
+        return new GitRepository(repoPath, gitDir, {
+            bare: options.bare,
+        });
     }
 
     static async open(repoPath: string): Promise<GitRepository> {
@@ -81,12 +93,19 @@ export class GitRepository {
         }
 
         const gitDir = bare ? repoPath : path.join(repoPath, ".git");
-        return new GitRepository(repoPath, gitDir);
+        return new GitRepository(repoPath, gitDir, {
+            bare,
+        });
     }
 
     static async openOrInit(repoPath: string, options: InitOptions = {}): Promise<GitRepository> {
         try {
-            return await GitRepository.open(repoPath);
+            const repo = await GitRepository.open(repoPath);
+            options.bare = options.bare || false;
+            if (options.bare != repo.meta.bare) {
+                throw new RepoBareStatusMismatch(options.bare, repo.meta.bare);
+            }
+            return repo;
         } catch (e) {
             if (e instanceof RepoNotFound) {
                 return await GitRepository.init(repoPath, options);
