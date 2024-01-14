@@ -13,12 +13,10 @@
         "url": "https://github.com/yannick-was-taken/igitt"
     },
     "scripts": {
-        "update-lock": "npm i --package-lock-only",
         "prepack": "tsc"
     },
     "keywords": [],
     "license": "MIT",
-    "packageManager": "yarn@4.0.2",
     "devDependencies": {
         "@types/ini": "^4.1.0",
         "ts-node": "^10.9.2",
